@@ -5,7 +5,7 @@ in the ``core`` package so each piece can be explained and tested separately:
 
     core/pcap_stats.py    -> Q23-26  capture overview + charts data
     core/http_matcher.py  -> Q27-29  request/response matching
-    core/ai_chat.py       -> Q30-34  prompt building + OpenAI calls
+    core/ai_chat.py       -> Q30-34  prompt building + Gemini calls
 
 Run with:  streamlit run app.py
 """
@@ -340,12 +340,12 @@ def render_chat(overview: dict, transactions: List[dict], file_key: str, model: 
         overview: Capture overview dict.
         transactions: All matched transactions.
         file_key: Hash of the uploaded file; the chat resets when it changes.
-        model: OpenAI model name from the sidebar.
+        model: Gemini model name from the sidebar.
         include_bodies: Whether request bodies may be sent to the LLM.
     """
-    client = ai_chat.load_openai_client()
+    client = ai_chat.load_gemini_client()
     if client is None:
-        st.error("No API key found. Copy `.env.example` to `.env`, set `OPENAI_API_KEY`, then restart the app.")
+        st.error("No API key found. Copy `.env.example` to `.env`, set `GEMINI_API_KEY` (free at aistudio.google.com/apikey), then restart the app.")
         return
     if not transactions:
         st.info("There are no HTTP transactions to ask about in this capture.")
@@ -380,7 +380,7 @@ def render_chat(overview: dict, transactions: List[dict], file_key: str, model: 
             with st.spinner("Thinking..."):
                 try:
                     answer = ai_chat.ask_llm(client, model, system_prompt, st.session_state["messages"])
-                except Exception as exc:  # network / quota / invalid key
+                except Exception as exc:  # network / invalid key / free-tier rate limit (HTTP 429)
                     answer = f"LLM request failed: {exc}"
             st.markdown(answer)
         st.session_state["messages"].append({"role": "assistant", "content": answer})
@@ -402,7 +402,7 @@ def main() -> None:
             help="Leave empty if tshark is on your PATH. macOS example: /Applications/Wireshark.app/Contents/MacOS/tshark",
         )
         st.header("AI assistant")
-        model = st.text_input("OpenAI model", value=ai_chat.get_default_model())
+        model = st.text_input("Gemini model", value=ai_chat.get_default_model())
         include_bodies = st.checkbox(
             "Send request bodies to the LLM",
             value=True,

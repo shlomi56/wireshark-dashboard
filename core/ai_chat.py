@@ -5,6 +5,11 @@ the capture into structured HTTP transactions; only a compact JSON rendering of
 that structured data is injected into the *system prompt*. The prompt then
 forces the model to cite frame numbers and timestamps from that data, so every
 claim in an answer can be verified in Wireshark.
+
+LLM PROVIDER: Google Gemini, reached through its OpenAI-compatible REST
+endpoint. Because Google mirrors the OpenAI "chat completions" protocol, we can
+keep using the official ``openai`` Python package and only change two things:
+the ``base_url`` (which server receives the request) and the API key.
 """
 
 from __future__ import annotations
@@ -19,30 +24,40 @@ from openai import OpenAI
 from core.utils import format_ts
 
 # Hard cap on transactions placed in the prompt: protects the context window
-# and the user's API bill. The prompt tells the model when data was cut.
+# and the free-tier rate limits. The prompt tells the model when data was cut.
 DEFAULT_MAX_TRANSACTIONS = 150
-DEFAULT_MODEL = "gpt-4o-mini"
+
+# Gemini's OpenAI-compatibility endpoint. The openai package appends
+# "/chat/completions" to this URL, so requests go to Google, not to OpenAI.
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+DEFAULT_MODEL = "gemini-2.5-flash"
 
 
-def load_openai_client() -> Optional[OpenAI]:
-    """Create an OpenAI client from the key stored in the local ``.env`` file.
+def load_gemini_client() -> Optional[OpenAI]:
+    """Create an ``OpenAI``-protocol client that talks to Google Gemini.
+
+    The class is called ``OpenAI`` because it implements OpenAI's wire protocol,
+    but ``base_url`` redirects every request to Google's servers, and the key
+    sent is a Gemini key (free from Google AI Studio).
 
     Returns:
-        An ``OpenAI`` client, or None if ``OPENAI_API_KEY`` is not configured
-        (the UI then shows setup instructions instead of failing).
+        A configured client, or None if ``GEMINI_API_KEY`` is not set (the UI
+        then shows setup instructions instead of failing).
     """
     # load_dotenv reads key=value lines from ./.env into os.environ, so the
     # secret never appears in source code or in version control.
     load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return None
-    return OpenAI(api_key=api_key)
+    # base_url is the ONLY change needed to switch provider: the library now
+    # sends its chat-completion requests to Gemini instead of api.openai.com.
+    return OpenAI(api_key=api_key, base_url=GEMINI_BASE_URL)
 
 
 def get_default_model() -> str:
-    """Return the chat model name (``OPENAI_MODEL`` in .env, else a default)."""
-    return os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
+    """Return the chat model name (``GEMINI_MODEL`` in .env, else ``gemini-2.5-flash``)."""
+    return os.getenv("GEMINI_MODEL", DEFAULT_MODEL)
 
 
 def _compact_transaction(t: dict, include_bodies: bool) -> dict:
@@ -161,8 +176,8 @@ def ask_llm(
     """Send the conversation to the LLM and return the assistant's reply text.
 
     Args:
-        client: An authenticated OpenAI client.
-        model: Chat model name, e.g. ``"gpt-4o-mini"``.
+        client: Client from :func:`load_gemini_client` (pointed at Gemini).
+        model: Gemini model name, e.g. ``"gemini-2.5-flash"``.
         system_prompt: Output of :func:`build_system_prompt`.
         history: Chat so far as ``[{"role": "user"|"assistant", "content": ...}]``.
         max_history_messages: Only the most recent N messages are re-sent, so
@@ -173,7 +188,8 @@ def ask_llm(
         The model's answer as plain text.
     """
     messages = [{"role": "system", "content": system_prompt}] + history[-max_history_messages:]
-    # No temperature is passed on purpose: some newer models only accept the
-    # default value and would reject a custom one.
+    # The request is identical to an OpenAI one; Gemini's compatibility layer
+    # translates it. No temperature is passed on purpose: the model's default
+    # is fine, and fewer parameters means fewer compatibility surprises.
     response = client.chat.completions.create(model=model, messages=messages)
     return response.choices[0].message.content or ""

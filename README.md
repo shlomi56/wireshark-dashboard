@@ -1,6 +1,6 @@
 # PCAP / HTTP Analysis Dashboard (Assignment 1, Part C)
 
-Streamlit + PyShark dashboard with an OpenAI-powered assistant.
+Streamlit + PyShark dashboard with a Google Gemini-powered assistant (via Gemini's OpenAI-compatible endpoint).
 
 ## Setup (macOS, VS Code)
 
@@ -9,7 +9,7 @@ brew install --cask wireshark          # provides tshark, which PyShark drives
 cd wireshark-dashboard
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env                   # then put your OPENAI_API_KEY in .env
+cp .env.example .env                   # then put your GEMINI_API_KEY in .env
 streamlit run app.py
 ```
 
@@ -32,5 +32,6 @@ into the sidebar field "tshark path".
 * A message's "frame" is the frame where Wireshark finishes dissecting it. If a
   request spans several TCP segments (headers in one, body in the next), the
   request frame is the LAST segment.
-* Request bodies are sent to OpenAI by default; untick the sidebar box to avoid that.
+* Request bodies are sent to Google Gemini by default; untick the sidebar box to avoid that. On the free tier Google may use submitted content to improve its products.
+* The free tier has rate limits; a 429 error in the chat means: wait a minute and retry.
 * Do not include your API key in the submitted files (`.env` is git-ignored).
