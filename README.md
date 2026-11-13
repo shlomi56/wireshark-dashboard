@@ -2,16 +2,56 @@
 
 Streamlit + PyShark dashboard with a Google Gemini-powered assistant (via Gemini's OpenAI-compatible endpoint).
 
-## Setup (macOS, VS Code)
+## Setup and Installation
 
+### 1. Prerequisites (Wireshark & tshark)
+This dashboard relies on the PyShark library, which requires `tshark` (the command-line network analyzer bundled with Wireshark) to be installed on your system.
+
+* **macOS:** Download the macOS installer from [wireshark.org](https://www.wireshark.org/) or run `brew install --cask wireshark`.
+* **Windows:** Download the Windows installer from [wireshark.org](https://www.wireshark.org/). *Important: During installation, ensure you check the box to install `tshark` and ensure Wireshark is added to your system PATH.*
+* **Linux (Ubuntu/Debian):** Run `sudo apt update && sudo apt install tshark`.
+
+### 2. Clone the Repository
 ```bash
-brew install --cask wireshark          # provides tshark, which PyShark drives
+git clone https://github.com/shlomi56/wireshark-dashboard.git
 cd wireshark-dashboard
-python3 -m venv .venv && source .venv/bin/activate
+```
+
+### 3. Python Environment Setup
+Create an isolated virtual environment and install the required Python dependencies to prevent package conflicts.
+
+**macOS and Linux:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env                   # then put your GEMINI_API_KEY in .env
+```
+
+**Windows:**
+```cmd
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 4. API Configuration (Google Gemini)
+The AI assistant chat feature uses the free Google Gemini API. 
+
+1. Generate a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. Create a hidden file named `.env` in the root of the project directory.
+3. Paste your credentials into the `.env` file exactly like this:
+```env
+GEMINI_API_KEY=your-google-api-key-here
+GEMINI_MODEL=gemini-3.8-flash
+```
+*(Note: If you do not configure an API key, the dashboard UI and local PCAP parsing will still function perfectly, but submitting a question to the AI assistant will return an authentication error).*
+
+### 5. Running the Dashboard
+With your virtual environment activated and your `.env` file saved, launch the application:
+```bash
 streamlit run app.py
 ```
+A new tab will automatically open in your default web browser at `http://localhost:8501`.
 
 In VS Code choose the `.venv` interpreter (Cmd+Shift+P > "Python: Select Interpreter").
 If tshark is not on your PATH, paste `/Applications/Wireshark.app/Contents/MacOS/tshark`
